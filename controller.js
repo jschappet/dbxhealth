@@ -1,9 +1,19 @@
+var fetch = require('isomorphic-fetch');
+
 const 
+redirectUri = `https://health.schappet.com/oauthredirect`,
 crypto = require('crypto'),
-dbx = require('dropbox'),
 config = require('./config'),
-NodeCache = require( "node-cache" );
+NodeCache = require( "node-cache" ),
+Dropbox = require('dropbox').Dropbox,
+dbxconfig = {
+  fetch: fetch,
+  clientId: config.DBX_APP_KEY,
+  clientSecret: config.DBX_APP_SECRET
+}
+;
 var mycache = new NodeCache();
+var dbx = new Dropbox(dbxconfig);
 
 
 //add to the variable definition section on the top
@@ -23,48 +33,62 @@ module.exports.oauthredirect = async (req,res,next)=>{
 
   //Exchange code for token
   if(req.query.code ){
+	
+ let code = req.query.code;
+  console.log(code);
+  var options = Object.assign({
+    code,
+    redirectUri
+  }, config);
+
+
+  dbx.getAccessTokenFromCode(redirectUri, code)
+    .then(function(token) {
+        //console.log(token);
+        mycache.set("aTempTokenKey", token, 3600);
+	res.redirect('/');
+    })
+    .catch(function(error) {
+        console.log(error);
+        return next(new Error('error getting token. '+error.message));
+    });
   
-    let options={
-      url: config.DBX_API_DOMAIN + config.DBX_TOKEN_PATH, 
-          //build query string
-      qs: {'code': req.query.code, 
-      'grant_type': 'authorization_code', 
-      'client_id': config.DBX_APP_KEY, 
-      'client_secret':config.DBX_APP_SECRET,
-      'redirect_uri':config.OAUTH_REDIRECT_URL}, 
-      method: 'POST',
-      json: true }
-
-    try{
-
-      let response = await rp(options);
-
-      //we will replace later cache with a proper storage
-      mycache.set("aTempTokenKey", response.access_token, 3600);
-      res.redirect("/");
-
-    }catch(error){
-      return next(new Error('error getting token. '+error.message));
-    }        
   }
 }
 
 //steps 1,2,3
 module.exports.home = async (req,res,next)=>{    
   let token = mycache.get("aTempTokenKey");
+  if (token) {
+    let path = "/" + req.params.year + "/"  + req.params.month ;
+    res.render('index' , { title: "Fast Track to Health" } );
+  } else {
+    res.redirect('/login');  
+  }
+} 
+
+
+
+module.exports.display = async (req,res,next)=>{
+  let token = mycache.get("aTempTokenKey");
+  let path = "/" + req.params.year + "/"  + req.params.month ;
+  if (req.params.year === undefined) {
+    res.render('index' , { title: "Fast Track to Health" } );
+  } else {
   if(token){
     try{
-      let paths = await getLinksAsync(token); 
-      console.log(paths);
-      res.render('gallery', { imgs: paths, layout:false});
+      getLinks(token, path);
+      let paths = await getLinksAsync(token);
+      res.render('display', { imgs: paths, layout:false});
     }catch(error){
-	console.log(error);
+        console.log(error);
       return next(new Error("Error getting images from Dropbox"));
     }
   }else{
-  res.redirect('/login');
+    res.redirect('/login');
   }
-} 
+}
+}
 
 //steps 4,5,6
 module.exports.login = (req,res,next)=>{
@@ -93,7 +117,7 @@ It is a two step process:
 async function getLinksAsync(token){
 
   //List images from the root of the app folder
-  let result= await listImagePathsAsync(token,'');
+  let result= await listImagePathsAsync(token,'/2018/08');
 
   //Get a temporary link for each of those paths returned
   let temporaryLinkResults= await getTemporaryLinksForPathsAsync(token,result.paths);
@@ -104,6 +128,19 @@ async function getLinksAsync(token){
   });
 
   return temporaryLinks;
+}
+
+
+async function getLinks(token, path) {
+  var dbx = new Dropbox({ accessToken: token });
+  dbx.filesListFolder({ path: path })
+    .then(function (response) {
+      console.log(response);
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+
 }
 
 
@@ -127,13 +164,12 @@ async function listImagePathsAsync(token,path){
     //Filter response to images only
     let entriesFiltered= result.entries.filter(function(entry){
 	return entry.path_lower.search(/\.json$/i) > -1;
-
+      //return entry.path_lower.search(/\.(gif|jpg|jpeg|tiff|png|json)$/i) > -1;
     });        
 
-      //return entry.path_lower.search(/\.(gif|jpg|jpeg|tiff|png|json)$/i) > -1;
     //Get an array from the entries with only the path_lower fields
     var paths = entriesFiltered.map(function (entry) {
-	console.log(entry);
+	//console.log(entry);
       return entry.path_lower;
     });
 

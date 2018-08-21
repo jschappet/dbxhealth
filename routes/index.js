@@ -10,8 +10,8 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 */
-router.get('/', controller.home);
 router.get('/login', controller.login);
+router.get('/', controller.home);
 router.get('/oauthredirect',controller.oauthredirect);
 
 module.exports = router;
