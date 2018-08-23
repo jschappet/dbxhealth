@@ -10,12 +10,16 @@
     "debug": "~2.6.9",
     "dropbox": "^4.0.9",
     "express": "~4.16.0",
+    "express-session": "^1.15.6",
+    "express-sessions": "^1.0.6",
     "galleria": "^1.5.7",
     "hbs": "~4.0.1",
     "http-errors": "~1.6.2",
     "isomorphic-fetch": "^2.2.1",
+    "lodash": "^4.17.10",
     "morgan": "~1.9.0",
     "node-cache": "^4.2.0",
+    "redis": "^2.8.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.2"
   }

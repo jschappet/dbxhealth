@@ -1,19 +1,62 @@
 <!DOCTYPE html>
-<html>
-<head>                       
-      <script type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js'></script>
-      <!-- <script src="/galleria/galleria.min.js"></script> -->
-      <script type='text/javascript' src='/javascripts/page.js'></script>
-      <link rel="stylesheet" href="/stylesheets/page.css">
+<head>
+  <title>Vega Lite Bar Chart</title>
+  <meta charset="utf-8">
+  <script type='text/javascript' src='https://code.jquery.com/jquery-3.2.1.min.js'></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/vega@4.2.0/build/vega.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@3.0.0-rc3/build/vega-lite.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@3.18.2/build/vega-embed.js"></script> 
+  <script type='text/javascript' src='/javascripts/lodash/lodash.min.js'></script> 
+  <script type='text/javascript' src='/javascripts/ftth.js'></script> 
+
+  <style media="screen">
+    /* Add space between Vega-Embed links  */
+    .vega-actions a {
+      margin-right: 5px;
+    }
+  </style>
 </head>
 <body>
-      <div class="1galleria">
-	<ul>
+  <h1>Template for Embedding Vega-Lite Visualization</h1>
+  <!-- Container for the visualization -->
+  <div id="vis"></div>
+
+  <script>
+  // Assign the specification to a local variable vlSpec.
+
+// {"date":"2018-08-01","data":{"weight":184.474008022757,"heartRate":{"average":73.86127167630057,"maximum":121,"minimum":61},"stepCount":{"Jimmy’s iPhone":18645,"James’s Apple Watch":19946},"bloodPressure":{"diastolic":null,"systolic":null}}}
+  var data = []; 
+  var vlSpec = 
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+  "description": "Google's stock price over time.",
+  "data":  data,
+  "mark": "line",
+  "encoding": {
+    "x": {"field": "date", "type": "temporal"},
+    "y": {"field": "weight", "type": "quantitative"}
+  }
+};
+
+  // Embed the visualization in the container with id `vis`
+  vegaEmbed("#vis", vlSpec);
+
+function getSummary(date, link) {
+	
+   $.getJSON(link , function(summaryData) {
+	let sumData = getResults(date, summaryData);
+	data.push({ date: sumData.date, weight: sumData.data.weight });
+        //var text = JSON.stringify(getResults(date, data) )
+        //$("#"+date).html(text);
+    });
+}
+
         {{#each imgs}}
-            <!-- <img src="{{this}}"> -->
-            <li >{{this}}</li>
-        {{/each}}
-	</ul>
-      </div>
+		getSummary("{{this.name}}","{{this.link}}");
+        {{/each }}
+
+
+  </script>
 </body>
 </html>

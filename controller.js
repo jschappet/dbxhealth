@@ -42,10 +42,12 @@ module.exports.oauthredirect = async (req,res,next)=>{
   }, config);
 
 
-  dbx.getAccessTokenFromCode(redirectUri, code)
-    .then(function(token) {
+ dbx.getAccessTokenFromCode(redirectUri, code)
+    .then( async function(token) {
         //console.log(token);
-        mycache.set("aTempTokenKey", token, 3600);
+        //mycache.set("aTempTokenKey", token, 3600);
+	//await regenerateSessionAsync(req);
+	req.session.token = token;
 	res.redirect('/');
     })
     .catch(function(error) {
@@ -58,7 +60,8 @@ module.exports.oauthredirect = async (req,res,next)=>{
 
 //steps 1,2,3
 module.exports.home = async (req,res,next)=>{    
-  let token = mycache.get("aTempTokenKey");
+  //let token = mycache.get("aTempTokenKey");
+  let token = req.session.token;
   if (token) {
     let path = "/" + req.params.year + "/"  + req.params.month ;
     res.render('index' , { title: "Fast Track to Health" } );
@@ -70,15 +73,16 @@ module.exports.home = async (req,res,next)=>{
 
 
 module.exports.display = async (req,res,next)=>{
-  let token = mycache.get("aTempTokenKey");
+  //let token = mycache.get("aTempTokenKey");
+  let token = req.session.token;
   let path = "/" + req.params.year + "/"  + req.params.month ;
   if (req.params.year === undefined) {
     res.render('index' , { title: "Fast Track to Health" } );
   } else {
   if(token){
     try{
-      getLinks(token, path);
-      let paths = await getLinksAsync(token);
+      //getLinks(token, path);
+      let paths = await getLinksAsync(token, req.params.year, req.params.month);
       res.render('display', { imgs: paths, layout:false});
     }catch(error){
         console.log(error);
@@ -96,8 +100,10 @@ module.exports.login = (req,res,next)=>{
     //create a random state value
     let state = crypto.randomBytes(16).toString('hex');
      
+    mycache.set(state, req.sessionID, 1800);
+
     //Save state and temporarysession for 10 mins
-    mycache.set(state, "aTempSessionValue", 1800);
+   // mycache.set(state, "aTempSessionValue", 1800);
      
     let dbxRedirect= config.DBX_OAUTH_DOMAIN 
             + config.DBX_OAUTH_PATH 
@@ -114,17 +120,17 @@ module.exports.login = (req,res,next)=>{
 It is a two step process:
 1.  Get a list of all the paths of files in the folder
 2.  Fetch a temporary link for each file in the folder */
-async function getLinksAsync(token){
+async function getLinksAsync(token, year, month){
 
   //List images from the root of the app folder
-  let result= await listImagePathsAsync(token,'/2018/08');
+  let result= await listImagePathsAsync(token, '/' + year + '/' + month);
 
   //Get a temporary link for each of those paths returned
   let temporaryLinkResults= await getTemporaryLinksForPathsAsync(token,result.paths);
 
   //Construct a new array only with the link field
   var temporaryLinks = temporaryLinkResults.map(function (entry) {
-    return entry.link;
+    return { path_lower: entry.metadata.path_lower , link: entry.link , name: entry.metadata.name.replace("\.json","") } ;
   });
 
   return temporaryLinks;
@@ -207,3 +213,11 @@ function getTemporaryLinksForPathsAsync(token,paths){
 }
 
 
+//Returns a promise that fulfills when a new session is created
+async function regenerateSessionAsync(req){
+  return new Promise((resolve,reject)=>{
+    req.session.regenerate((err)=>{
+      err ? reject(err) : resolve();
+    });
+  });
+}
