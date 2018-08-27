@@ -58,31 +58,38 @@ module.exports.oauthredirect = async (req,res,next)=>{
   }
 }
 
+let dirSort = function(a, b) { return a.name < b.name };
 //steps 1,2,3
 module.exports.home = async (req,res,next)=>{    
   //let token = mycache.get("aTempTokenKey");
   let token = req.session.token;
   if (token) {
     let path = "/" + req.params.year + "/"  + req.params.month ;
-    res.render('index' , { title: "Fast Track to Health" } );
+    let year = (req.params.year  ? "/" + req.params.year : "")
+    getDirectoryPromise(token, year).then ((directories) =>{ ;
+	res.render('index' , { title: "Fast Track to Health" , years: directories.sort(dirSort) } );
+	}).catch((error) =>{ console.log(error) } );
   } else {
     res.redirect('/login');  
   }
 } 
 
 
-
 module.exports.display = async (req,res,next)=>{
   //let token = mycache.get("aTempTokenKey");
   let token = req.session.token;
   let path = "/" + req.params.year + "/"  + req.params.month ;
-  if (req.params.year === undefined) {
-    res.render('index' , { title: "Fast Track to Health" } );
+  if (req.params.year === undefined || req.params.month === undefined ) {
+    let year = (req.params.year  ? "/" + req.params.year : "")
+    getDirectoryPromise(token, year).then ((directories) =>{ ;
+        res.render('index' , { title: "Fast Track to Health" , years: directories.sort(dirSort) } );
+        }).catch((error) =>{ console.log(error) } );
   } else {
   if(token){
     try{
       //getLinks(token, path);
       let paths = await getLinksAsync(token, req.params.year, req.params.month);
+      console.log("Path Size: " + paths.length );
       res.render('display', { imgs: paths, layout:false});
     }catch(error){
         console.log(error);
@@ -137,17 +144,48 @@ async function getLinksAsync(token, year, month){
 }
 
 
-async function getLinks(token, path) {
+async function getDirectoryLinks(token, path) {
   var dbx = new Dropbox({ accessToken: token });
   dbx.filesListFolder({ path: path })
     .then(function (response) {
-      console.log(response);
+	let entriesFiltered= response.entries.filter(function(entry){
+		return entry[".tag"] === "folder";
+    	});
+      //console.log(entriesFiltered);
+      return entriesFiltered;
     })
     .catch(function (err) {
       console.log(err);
     });
 
 }
+
+
+
+
+/*
+getDirectoryPromise
+*/
+
+
+
+ function getDirectoryPromise(token, path) {
+	return new Promise((resolve, reject) => {
+	  var dbx = new Dropbox({ accessToken: token });
+	  dbx.filesListFolder({ path: path })
+	    .then(function (response) {
+		let entriesFiltered= response.entries.filter(function(entry){
+			return entry[".tag"] === "folder";
+		});
+	      //console.log(entriesFiltered);
+	      return resolve(entriesFiltered);
+	    })
+	    .catch(function (err) {
+	      console.log(err);
+		 return reject(err);
+	    }) ; 
+	});
+} 
 
 
 /*

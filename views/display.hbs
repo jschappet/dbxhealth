@@ -18,7 +18,7 @@
   </style>
 </head>
 <body>
-  <h1>Template for Embedding Vega-Lite Visualization</h1>
+  <h2>Weight</h2>
   <!-- Container for the visualization -->
   <div id="vis"></div>
 
@@ -27,28 +27,38 @@
 
 // {"date":"2018-08-01","data":{"weight":184.474008022757,"heartRate":{"average":73.86127167630057,"maximum":121,"minimum":61},"stepCount":{"Jimmy’s iPhone":18645,"James’s Apple Watch":19946},"bloodPressure":{"diastolic":null,"systolic":null}}}
   var data = []; 
-  var vlSpec = 
-{
-  "$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-  "description": "Google's stock price over time.",
-  "data":  data,
-  "mark": "line",
-  "encoding": {
-    "x": {"field": "date", "type": "temporal"},
-    "y": {"field": "weight", "type": "quantitative"}
-  }
-};
 
   // Embed the visualization in the container with id `vis`
-  vegaEmbed("#vis", vlSpec);
+
+var targetProxy = new Proxy(data, {
+  set: function (target, key, value) {
+      console.log(`${key} set to ${value}`);
+      target[key] = value;
+      return true;
+  }
+});
+
 
 function getSummary(date, link) {
 	
    $.getJSON(link , function(summaryData) {
 	let sumData = getResults(date, summaryData);
 	data.push({ date: sumData.date, weight: sumData.data.weight });
-        //var text = JSON.stringify(getResults(date, data) )
-        //$("#"+date).html(text);
+
+  var vlSpec = 
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v3.0.0-rc3.json",
+  "description": "Weight Over Time",
+  "data": { values: data },
+  "width": 800,
+  "mark": "line",
+  "encoding": {
+    "x": {"field": "date", "type": "temporal"},
+    "y": {"field": "weight", "type": "quantitative",  "scale": {"zero": false}}
+  }
+};
+
+  vegaEmbed("#vis", vlSpec);
     });
 }
 

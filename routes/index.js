@@ -14,4 +14,5 @@ router.get('/login', controller.login);
 router.get('/', controller.home);
 router.get('/oauthredirect',controller.oauthredirect);
 
+router.get('/y/:year', controller.home);
 module.exports = router;
